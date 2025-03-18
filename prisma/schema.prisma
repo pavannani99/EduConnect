@@ -1,0 +1,262 @@
+// This is your Prisma schema file
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+model User {
+  id            String      @id @default(cuid())
+  name          String
+  email         String      @unique
+  password      String
+  role          UserRole    @default(STUDENT)
+  collegeId     String?
+  college       College?    @relation(fields: [collegeId], references: [id])
+  createdAt     DateTime    @default(now())
+  updatedAt     DateTime    @updatedAt
+  classrooms    Classroom[] @relation("ClassroomMembers")
+  ownedRooms    Classroom[] @relation("ClassroomOwner")
+  notes         Note[]
+  comments      NoteComment[]
+  submissions   AssignmentSubmission[]
+  quizAttempts  QuizAttempt[]
+  resources     Resource[]
+  activities    UserActivity[]
+  pushSubscriptions PushSubscription[]
+  analyticsReports AnalyticsReport[]
+}
+
+model College {
+  id          String      @id @default(cuid())
+  name        String
+  domain      String      @unique
+  users       User[]
+  classrooms  Classroom[]
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+}
+
+model Classroom {
+  id          String    @id @default(cuid())
+  name        String
+  section     String
+  inviteCode  String    @unique @default(cuid())
+  isPrivate   Boolean   @default(true)
+  collegeId   String
+  college     College   @relation(fields: [collegeId], references: [id])
+  ownerId     String
+  owner       User      @relation("ClassroomOwner", fields: [ownerId], references: [id])
+  members     User[]    @relation("ClassroomMembers")
+  subjects    Subject[]
+  messages    Message[]
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  @@unique([collegeId, section])
+}
+
+model Subject {
+  id          String      @id @default(cuid())
+  name        String
+  code        String
+  classroom   Classroom   @relation(fields: [classroomId], references: [id], onDelete: Cascade)
+  classroomId String
+  notes       Note[]
+  assignments Assignment[]
+  quizzes     Quiz[]
+  resources   Resource[]
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+
+  @@unique([classroomId, code])
+}
+
+model Note {
+  id          String        @id @default(cuid())
+  title       String
+  content     String        @db.Text
+  subject     Subject       @relation(fields: [subjectId], references: [id], onDelete: Cascade)
+  subjectId   String
+  author      User          @relation(fields: [authorId], references: [id])
+  authorId    String
+  comments    NoteComment[]
+  attachments String[]
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+}
+
+model NoteComment {
+  id        String    @id @default(cuid())
+  content   String
+  note      Note      @relation(fields: [noteId], references: [id], onDelete: Cascade)
+  noteId    String
+  author    User      @relation(fields: [authorId], references: [id])
+  authorId  String
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+}
+
+model Message {
+  id          String      @id @default(cuid())
+  content     String
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+  sender      User        @relation(fields: [senderId], references: [id], onDelete: Cascade)
+  senderId    String
+  classroom   Classroom   @relation(fields: [classroomId], references: [id], onDelete: Cascade)
+  classroomId String
+
+  @@index([senderId])
+  @@index([classroomId])
+}
+
+model Assignment {
+  id          String      @id @default(cuid())
+  title       String
+  description String      @db.Text
+  dueDate     DateTime
+  subject     Subject     @relation(fields: [subjectId], references: [id], onDelete: Cascade)
+  subjectId   String
+  attachments String[]
+  submissions AssignmentSubmission[]
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+}
+
+model AssignmentSubmission {
+  id            String      @id @default(cuid())
+  content       String      @db.Text
+  attachments   String[]
+  assignment    Assignment  @relation(fields: [assignmentId], references: [id], onDelete: Cascade)
+  assignmentId  String
+  student       User        @relation(fields: [studentId], references: [id])
+  studentId     String
+  grade         Float?
+  feedback      String?     @db.Text
+  submittedAt   DateTime    @default(now())
+  gradedAt      DateTime?
+}
+
+model Quiz {
+  id          String      @id @default(cuid())
+  title       String
+  description String      @db.Text
+  subject     Subject     @relation(fields: [subjectId], references: [id], onDelete: Cascade)
+  subjectId   String
+  questions   Question[]
+  startTime   DateTime
+  endTime     DateTime
+  duration    Int         // in minutes
+  attempts    QuizAttempt[]
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+}
+
+model Question {
+  id          String      @id @default(cuid())
+  content     String      @db.Text
+  type        QuestionType
+  options     Json?       // For MCQ: [{text: string, isCorrect: boolean}]
+  answer      String?     // For non-MCQ questions
+  points      Int
+  quiz        Quiz        @relation(fields: [quizId], references: [id], onDelete: Cascade)
+  quizId      String
+  responses   QuestionResponse[]
+}
+
+model QuizAttempt {
+  id          String      @id @default(cuid())
+  quiz        Quiz        @relation(fields: [quizId], references: [id], onDelete: Cascade)
+  quizId      String
+  student     User        @relation(fields: [studentId], references: [id])
+  studentId   String
+  responses   QuestionResponse[]
+  startedAt   DateTime    @default(now())
+  submittedAt DateTime?
+  score       Float?
+}
+
+model QuestionResponse {
+  id            String      @id @default(cuid())
+  question      Question    @relation(fields: [questionId], references: [id], onDelete: Cascade)
+  questionId    String
+  attempt       QuizAttempt @relation(fields: [attemptId], references: [id], onDelete: Cascade)
+  attemptId     String
+  answer        String
+  isCorrect     Boolean?
+  points        Float?
+}
+
+model Resource {
+  id          String      @id @default(cuid())
+  title       String
+  description String      @db.Text
+  type        ResourceType
+  url         String?
+  fileKey     String?     // For uploaded files
+  subject     Subject     @relation(fields: [subjectId], references: [id], onDelete: Cascade)
+  subjectId   String
+  author      User        @relation(fields: [authorId], references: [id])
+  authorId    String
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+}
+
+model UserActivity {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id])
+  type      String
+  timestamp DateTime @default(now())
+  duration  Int?     // Duration in seconds
+  metadata  Json?    // Additional activity data
+
+  @@index([userId])
+  @@index([timestamp])
+}
+
+model PushSubscription {
+  id       String @id @default(cuid())
+  userId   String
+  user     User   @relation(fields: [userId], references: [id])
+  endpoint String @unique
+  p256dh   String
+  auth     String
+  
+  @@index([userId])
+}
+
+model AnalyticsReport {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id])
+  type      String
+  data      Json
+  createdAt DateTime @default(now())
+  
+  @@index([userId])
+  @@index([createdAt])
+}
+
+enum UserRole {
+  STUDENT
+  CR
+  ADMIN
+}
+
+enum QuestionType {
+  MULTIPLE_CHOICE
+  SHORT_ANSWER
+  LONG_ANSWER
+}
+
+enum ResourceType {
+  DOCUMENT
+  VIDEO
+  LINK
+  OTHER
+} 
