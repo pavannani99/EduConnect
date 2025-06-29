@@ -28,6 +28,8 @@ model User {
   activities    UserActivity[]
   pushSubscriptions PushSubscription[]
   analyticsReports AnalyticsReport[]
+
+  @@index([collegeId]) // Added index
 }
 
 model College {
@@ -87,6 +89,9 @@ model Note {
   attachments String[]
   createdAt   DateTime      @default(now())
   updatedAt   DateTime      @updatedAt
+
+  @@index([authorId])  // Added index
+  @@index([subjectId]) // Added index
 }
 
 model NoteComment {
@@ -139,6 +144,9 @@ model AssignmentSubmission {
   feedback      String?     @db.Text
   submittedAt   DateTime    @default(now())
   gradedAt      DateTime?
+
+  @@index([studentId])    // Added index
+  @@index([assignmentId]) // Added index
 }
 
 model Quiz {
@@ -178,6 +186,9 @@ model QuizAttempt {
   startedAt   DateTime    @default(now())
   submittedAt DateTime?
   score       Float?
+
+  @@index([studentId]) // Added index
+  @@index([quizId])    // Added index
 }
 
 model QuestionResponse {

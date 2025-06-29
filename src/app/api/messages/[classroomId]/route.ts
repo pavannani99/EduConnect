@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
+import { sendNotificationToUsers } from '@/lib/notifications/server'; // Import push notification sender
 
 // GET messages for a classroom
 export async function GET(
@@ -96,7 +97,35 @@ export async function POST(
     });
 
     // TODO: Implement real-time broadcasting of the message (e.g., via WebSockets)
-    // For now, just return the created message.
+
+    // Send push notifications to other classroom members
+    if (newMessage) {
+      const classroomWithMembers = await prisma.classroom.findUnique({
+        where: { id: classroomId },
+        include: {
+          members: { select: { id: true } },
+          // owner: { select: { name: true } } // For sender name in notification if needed & not available on session
+        },
+      });
+
+      if (classroomWithMembers && classroomWithMembers.members.length > 0) {
+        const recipientIds = classroomWithMembers.members
+          .map(member => member.id)
+          .filter(id => id !== session.user.id); // Exclude the sender
+
+        if (recipientIds.length > 0) {
+          const notificationPayload = {
+            title: `New message in ${classroomWithMembers.name}`,
+            body: `${session.user.name || 'Someone'}: ${content.substring(0, 100)}${content.length > 100 ? '...' : ''}`, // Preview of message
+            url: `/messages?classroomId=${classroomId}`, // Or `/classroom/${classroomId}/messages`
+            tag: `classroom-message-${classroomId}` // Tag to potentially replace previous notifications for this classroom
+          };
+          // Not awaiting this, let it run in background
+          sendNotificationToUsers(recipientIds, notificationPayload)
+            .catch(err => console.error("Failed to send push notifications:", err));
+        }
+      }
+    }
 
     return NextResponse.json(newMessage, { status: 201 });
   } catch (error) {

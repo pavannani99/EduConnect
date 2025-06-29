@@ -41,8 +41,12 @@ export async function requestNotificationPermission(): Promise<NotificationPermi
 
 export async function subscribeToPushNotifications(): Promise<PushSubscription | null> {
   if (!VAPID_PUBLIC_KEY || VAPID_PUBLIC_KEY === 'YOUR_PUBLIC_VAPID_KEY_HERE') {
-    console.error("VAPID public key is not defined. Please set NEXT_PUBLIC_VAPID_PUBLIC_KEY environment variable.");
-    alert("Push notification setup is incomplete on the server. Please contact support."); // User-facing alert
+    console.error(
+      "VAPID public key is not defined or is still the placeholder. " +
+      "Please set the NEXT_PUBLIC_VAPID_PUBLIC_KEY environment variable for push notifications to work. " +
+      "Push notifications will be disabled."
+    );
+    // alert("Push notification setup is incomplete on the server. Please contact support."); // Removed for prod
     return null;
   }
 

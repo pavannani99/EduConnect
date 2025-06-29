@@ -1,0 +1,18 @@
+# https://www.robotstxt.org/robotstxt.html
+User-agent: *
+Disallow: /api/ # Disallow crawling of API routes by default
+Disallow: /auth/ # Disallow crawling of authentication pages
+# Add Allow directives for sitemap if you have one, e.g.,
+# Sitemap: https://www.yourapp.com/sitemap.xml
+
+User-agent: GPTBot
+Disallow: /
+
+User-agent: ChatGPT-User
+Disallow: /
+
+User-agent: Google-Extended
+Disallow: /
+
+User-agent: CCBot
+Disallow: /
