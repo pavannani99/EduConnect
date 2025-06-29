@@ -3,6 +3,8 @@ import { getServerSession } from 'next-auth';
 import { redirect } from 'next/navigation';
 import { authOptions } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
+import { trackUserActivity } from '@/lib/analytics'; // Import analytics tracking
+import { generateDetailedAnalytics } from '@/lib/analytics/advanced'; // Import for detailed analytics
 import {
   Card,
   CardContent,
@@ -87,10 +89,33 @@ async function getAnalytics(userId: string) {
 export default async function DashboardPage() {
   const session = await getServerSession(authOptions);
   if (!session) {
-    redirect('/login');
+    // Middleware should handle this, but as a safeguard:
+    redirect('/auth/login');
   }
 
-  const analytics = await getAnalytics(session.user.id);
+  // Track dashboard view activity
+  // Not awaiting, fire-and-forget
+  trackUserActivity(session.user.id, 'VIEW_DASHBOARD');
+
+  // Use the more detailed analytics function
+  // const analytics = await getAnalytics(session.user.id); // Old function
+  const detailedAnalytics = await generateDetailedAnalytics(session.user.id);
+
+
+  // For the cards, we can adapt data from detailedAnalytics or keep getAnalytics if it's simpler for card display
+  // For this example, let's assume getAnalytics was providing the direct counts needed for the top cards.
+  // We can either call both, or ensure generateDetailedAnalytics provides everything.
+  // Let's try to adapt from detailedAnalytics for now.
+  const summaryAnalytics = {
+    totalSubjects: await prisma.subject.count({ // This might need to be part of generateDetailedAnalytics or fetched separately
+        where: { classroom: { members: { some: { id: session.user.id } } } }
+    }),
+    totalAssignments: detailedAnalytics.learningProgress.totalAssignments,
+    completedAssignments: detailedAnalytics.learningProgress.completedAssignments,
+    quizzesAttempted: detailedAnalytics.performance.quizScores.length, // Assuming quizScores are from attempts
+    averageQuizScore: detailedAnalytics.learningProgress.averageScore, // This was already in getAnalytics
+  };
+
 
   return (
     <div className="container mx-auto px-4 py-8">
@@ -107,7 +132,7 @@ export default async function DashboardPage() {
             <BookOpenIcon className="h-5 w-5 text-blue-500" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{analytics.totalSubjects}</div>
+            <div className="text-2xl font-bold">{summaryAnalytics.totalSubjects}</div>
             <p className="text-xs text-gray-500">Enrolled subjects</p>
           </CardContent>
         </Card>
@@ -118,7 +143,7 @@ export default async function DashboardPage() {
             <ClipboardDocumentCheckIcon className="h-5 w-5 text-green-500" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{analytics.completedAssignments}/{analytics.totalAssignments}</div>
+            <div className="text-2xl font-bold">{summaryAnalytics.completedAssignments}/{summaryAnalytics.totalAssignments}</div>
             <p className="text-xs text-gray-500">Completed assignments</p>
           </CardContent>
         </Card>
@@ -129,7 +154,7 @@ export default async function DashboardPage() {
             <AcademicCapIcon className="h-5 w-5 text-purple-500" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{analytics.quizzesAttempted}</div>
+            <div className="text-2xl font-bold">{summaryAnalytics.quizzesAttempted}</div>
             <p className="text-xs text-gray-500">Quizzes attempted</p>
           </CardContent>
         </Card>
@@ -140,7 +165,7 @@ export default async function DashboardPage() {
             <ChartBarIcon className="h-5 w-5 text-yellow-500" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{analytics.averageQuizScore.toFixed(1)}%</div>
+            <div className="text-2xl font-bold">{summaryAnalytics.averageQuizScore.toFixed(1)}%</div>
             <p className="text-xs text-gray-500">Quiz performance</p>
           </CardContent>
         </Card>

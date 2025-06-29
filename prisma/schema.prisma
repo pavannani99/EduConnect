@@ -223,10 +223,11 @@ model PushSubscription {
   id       String @id @default(cuid())
   userId   String
   user     User   @relation(fields: [userId], references: [id])
-  endpoint String @unique
+  endpoint String // Endpoint is unique per user, not globally, so remove @unique here
   p256dh   String
   auth     String
   
+  @@unique([endpoint, userId]) // Add composite unique key
   @@index([userId])
 }
 
