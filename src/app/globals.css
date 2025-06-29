@@ -4,13 +4,105 @@
 
 @layer base {
   :root {
-    --background: 0 0% 100%;
-    --foreground: 222.2 84% 4.9%;
-    --primary: 221.2 83.2% 53.3%;
-    --primary-foreground: 210 40% 98%;
+    /* Default Light Theme Variables */
+    --background: 0 0% 100%; /* White */
+    --foreground: 224 71.4% 4.1%; /* Dark Gray / Almost Black */
+
+    --card: 0 0% 100%; /* White */
+    --card-foreground: 224 71.4% 4.1%; /* Dark Gray / Almost Black */
+
+    --popover: 0 0% 100%; /* White */
+    --popover-foreground: 224 71.4% 4.1%; /* Dark Gray / Almost Black */
+
+    --primary: 221.2 83.2% 53.3%; /* Default Blue */
+    --primary-foreground: 210 20% 98%; /* Light Gray / Almost White */
+
+    --secondary: 215 27.9% 16.9%; /* Darker Blue/Gray */
+    --secondary-foreground: 210 20% 98%; /* Light Gray / Almost White */
+
+    --muted: 215 20.2% 65.1%; /* Muted Gray */
+    --muted-foreground: 215 25% 26.7%; /* Darker Muted Gray */
+
+    --accent: 210 40% 96.1%; /* Light Grayish Blue */
+    --accent-foreground: 220.9 39.3% 11.0%; /* Dark Blue/Gray */
+
+    --destructive: 0 84.2% 60.2%; /* Red */
+    --destructive-foreground: 210 20% 98%; /* Light Gray / Almost White */
+
+    --border: 215 20.2% 65.1%; /* Muted Gray - for borders */
+    --input: 215 20.2% 65.1%; /* Muted Gray - for input borders */
+    --ring: 221.2 83.2% 53.3%; /* Default Blue - for focus rings */
+
+    --radius: 0.5rem; /* Default border radius */
   }
+
+  /* Example Dark Theme (can be uncommented and refined later)
+  .dark {
+    --background: 224 71.4% 4.1%;
+    --foreground: 210 20% 98%;
+
+    --card: 224 71.4% 4.1%;
+    --card-foreground: 210 20% 98%;
+
+    --popover: 224 71.4% 4.1%;
+    --popover-foreground: 210 20% 98%;
+
+    --primary: 217.2 91.2% 59.8%;
+    --primary-foreground: 210 20% 98%;
+
+    --secondary: 215 27.9% 16.9%;
+    --secondary-foreground: 210 20% 98%;
+
+    --muted: 215.4 16.3% 16.9%;
+    --muted-foreground: 215 20.2% 65.1%;
+
+    --accent: 215.4 16.3% 16.9%;
+    --accent-foreground: 210 20% 98%;
+
+    --destructive: 0 62.8% 30.6%;
+    --destructive-foreground: 210 20% 98%;
+
+    --border: 215 27.9% 16.9%;
+    --input: 215 27.9% 16.9%;
+    --ring: 217.2 91.2% 59.8%;
+  }
+  */
 
   body {
     @apply bg-background text-foreground min-h-screen antialiased;
+    font-family: var(--font-inter), sans-serif; /* Ensure Inter font is applied */
   }
-} 
+
+  /* Custom scrollbar (optional, for aesthetics) */
+  ::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+  }
+  ::-webkit-scrollbar-track {
+    @apply bg-background;
+  }
+  ::-webkit-scrollbar-thumb {
+    @apply bg-muted rounded;
+  }
+  ::-webkit-scrollbar-thumb:hover {
+    @apply bg-secondary;
+  }
+}
+
+@layer components {
+  /* Toast animation */
+  .animate-toast-in {
+    animation: toast-in 0.5s ease-out forwards;
+  }
+
+  @keyframes toast-in {
+    from {
+      opacity: 0;
+      transform: translateY(-20px) scale(0.95);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0) scale(1);
+    }
+  }
+}

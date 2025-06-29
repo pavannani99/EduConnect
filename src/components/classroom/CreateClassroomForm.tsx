@@ -1,9 +1,12 @@
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { useForm } from 'react-hook-form'
-import { zodResolver } from '@hookform/resolvers/zod'
-import * as z from 'zod'
-import { Button } from '@/components/ui/Button'
+import { zodResolver } from '@hookform/resolvers/zod';
+import * as z from 'zod';
+import { Button } from '@/components/ui/Button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { useToast } from '@/context/ToastContext'; // Import useToast
 
 const classroomSchema = z.object({
   name: z.string().min(2, 'Name must be at least 2 characters'),
@@ -13,10 +16,11 @@ const classroomSchema = z.object({
 
 type ClassroomData = z.infer<typeof classroomSchema>
 
-export function CreateClassroomForm() {
-  const router = useRouter()
-  const [isLoading, setIsLoading] = useState(false)
-  const [error, setError] = useState('')
+export function CreateClassroomForm({ onSuccess }: { onSuccess?: () => void }) { // Add onSuccess prop
+  const router = useRouter();
+  const { addToast } = useToast(); // Use the toast hook
+  const [isLoading, setIsLoading] = useState(false);
+  // const [error, setError] = useState(''); // No longer using local error state for main feedback
 
   const {
     register,
@@ -31,76 +35,85 @@ export function CreateClassroomForm() {
 
   const onSubmit = async (data: ClassroomData) => {
     try {
-      setIsLoading(true)
-      setError('')
+      setIsLoading(true);
+      // setError(''); // Not using local error state for main feedback
 
       const response = await fetch('/api/classrooms', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(data),
-      })
+      });
+
+      const result = await response.json(); // Try to get JSON regardless of response.ok for error messages
 
       if (!response.ok) {
-        throw new Error('Failed to create classroom')
+        throw new Error(result.error || 'Failed to create classroom');
       }
 
-      const result = await response.json()
-      router.push(`/dashboard/classroom/${result.id}`)
-    } catch (err) {
-      setError('Something went wrong. Please try again.')
+      addToast('Classroom created successfully!', 'success');
+      if (onSuccess) {
+        onSuccess(); // Call the callback to close modal, etc.
+      }
+      router.refresh(); // Refresh current route to reflect new classroom if on classrooms list
+      router.push(`/classroom/${result.id}`); // Navigate to the new classroom
+    } catch (err: any) {
+      // setError('Something went wrong. Please try again.'); // Not using local error state
+      addToast(err.message || 'Something went wrong. Please try again.', 'error');
     } finally {
-      setIsLoading(false)
+      setIsLoading(false);
     }
-  }
+  };
 
   return (
     <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
-      <div>
-        <label htmlFor="name" className="block text-sm font-medium text-gray-700">
-          Classroom Name
-        </label>
-        <input
+      <div className="space-y-2">
+        <Label htmlFor="name">Classroom Name</Label>
+        <Input
+          id="name"
           {...register('name')}
           type="text"
-          className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
           placeholder="e.g., Advanced Mathematics"
+          className={errors.name ? 'border-destructive focus-visible:ring-destructive' : ''}
         />
         {errors.name && (
-          <p className="mt-1 text-sm text-red-600">{errors.name.message}</p>
+          <p className="text-sm text-destructive">{errors.name.message}</p>
         )}
       </div>
 
-      <div>
-        <label htmlFor="section" className="block text-sm font-medium text-gray-700">
-          Section
-        </label>
-        <input
+      <div className="space-y-2">
+        <Label htmlFor="section">Section</Label>
+        <Input
+          id="section"
           {...register('section')}
           type="text"
-          className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
           placeholder="e.g., EE-1"
+          className={errors.section ? 'border-destructive focus-visible:ring-destructive' : ''}
         />
         {errors.section && (
-          <p className="mt-1 text-sm text-red-600">{errors.section.message}</p>
+          <p className="text-sm text-destructive">{errors.section.message}</p>
         )}
       </div>
 
-      <div className="flex items-center">
+      <div className="flex items-center space-x-2">
+        {/* Ideally, this would be a src/components/ui/checkbox.tsx component */}
         <input
+          id="isPrivate"
           {...register('isPrivate')}
           type="checkbox"
-          className="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+          className="h-4 w-4 rounded border-input text-primary focus:ring-ring"
         />
-        <label htmlFor="isPrivate" className="ml-2 block text-sm text-gray-700">
+        <Label htmlFor="isPrivate" className="font-normal">
           Make this classroom private (invite-only)
-        </label>
+        </Label>
       </div>
 
+      {/* General form error from API is now handled by toast, no need for this block unless specific placement is desired
       {error && (
-        <div className="rounded-md bg-red-50 p-4">
-          <p className="text-sm text-red-700">{error}</p>
+        <div className="rounded-md bg-destructive/10 p-3">
+          <p className="text-sm text-destructive">{error}</p>
         </div>
       )}
+      */}
 
       <Button
         type="submit"

@@ -7,7 +7,11 @@ import { ClassroomCard } from '@/components/classroom/ClassroomCard';
 import { CreateClassroomForm } from '@/components/classroom/CreateClassroomForm';
 import { Button } from '@/components/ui/Button';
 import { UserRole, Classroom as PrismaClassroom, User as PrismaUser } from '@prisma/client'; // Import types
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog'; // Assuming you have a Dialog component
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Skeleton } from '@/components/ui/skeleton';
+import { useToast } from '@/context/ToastContext'; // Import useToast
 
 // Define the expected shape of classroom data, including relations
 interface ClassroomWithDetails extends PrismaClassroom {
@@ -18,10 +22,11 @@ interface ClassroomWithDetails extends PrismaClassroom {
 export default function ClassroomsPage() {
   const { data: session, status } = useSession();
   const router = useRouter();
+  const { addToast } = useToast(); // Use the toast hook
   const [classrooms, setClassrooms] = useState<ClassroomWithDetails[]>([]);
   const [userRole, setUserRole] = useState<UserRole | null>(null);
   const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  // const [error, setError] = useState<string | null>(null); // Page-level error display can be replaced by toasts for fetch errors
 
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [showJoinModal, setShowJoinModal] = useState(false);
@@ -43,9 +48,9 @@ export default function ClassroomsPage() {
 
   const fetchClassrooms = async () => {
     setIsLoading(true);
-    setError(null);
+    // setError(null); // Not using page-level error state as much
     try {
-      const response = await fetch('/api/classrooms'); // Uses the new GET endpoint
+      const response = await fetch('/api/classrooms');
       if (!response.ok) {
         const errData = await response.json();
         throw new Error(errData.error || 'Failed to fetch classrooms');
@@ -53,7 +58,8 @@ export default function ClassroomsPage() {
       const data: ClassroomWithDetails[] = await response.json();
       setClassrooms(data);
     } catch (err: any) {
-      setError(err.message);
+      // setError(err.message);
+      addToast(err.message || 'Could not load classrooms.', 'error');
     } finally {
       setIsLoading(false);
     }
@@ -96,16 +102,54 @@ export default function ClassroomsPage() {
       setInviteCode('');
       // Re-fetch classrooms or update state to reflect membership
       fetchClassrooms();
+      addToast('Successfully joined classroom!', 'success'); // Toast on success
       // Optionally, navigate to the classroom page: router.push(`/classroom/${selectedClassroomToJoin.id}`);
     } catch (err: any) {
-      setJoinError(err.message);
+      setJoinError(err.message); // Keep local error for modal display
+      addToast(err.message || 'Failed to join classroom.', 'error'); // Show global toast for error
     } finally {
       setIsJoining(false);
     }
   };
 
-  if (status === 'loading' || isLoading && classrooms.length === 0) {
-    return <div className="container mx-auto py-8 text-center">Loading classrooms...</div>;
+  const ClassroomCardSkeleton = () => (
+    <div className="rounded-lg border bg-card p-6 shadow-sm flex flex-col justify-between">
+      <div>
+        <div className="flex items-start justify-between mb-2">
+          <div>
+            <Skeleton className="h-5 w-3/4 mb-1" /> {/* Title */}
+            <Skeleton className="h-4 w-1/2" />    {/* Section */}
+          </div>
+          <Skeleton className="h-5 w-12 rounded-full" /> {/* Private/Public badge */}
+        </div>
+        <div className="text-sm text-gray-500 mb-4 space-y-1">
+          <Skeleton className="h-4 w-2/3" /> {/* Created by */}
+          <Skeleton className="h-4 w-1/3" /> {/* Members */}
+        </div>
+      </div>
+      <div className="mt-auto pt-4 border-t border-gray-200">
+        <Skeleton className="h-9 w-full" /> {/* Button */}
+      </div>
+    </div>
+  );
+
+  // Updated loading condition: show skeletons if session is loading OR if app is loading classrooms and has no classrooms yet.
+  // Error display is now primarily handled by toasts for fetch errors.
+  if (status === 'loading' || (isLoading && classrooms.length === 0)) {
+    // Show skeleton loaders
+    return (
+      <div className="container mx-auto py-8 px-4 md:px-0">
+        <div className="mb-8 flex flex-col md:flex-row items-center justify-between gap-4">
+          <Skeleton className="h-9 w-48" /> {/* Title Skeleton */}
+          <Skeleton className="h-10 w-36" /> {/* Button Skeleton */}
+        </div>
+        <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+          {Array.from({ length: 8 }).map((_, index) => ( // Show 8 skeleton cards
+            <ClassroomCardSkeleton key={index} />
+          ))}
+        </div>
+      </div>
+    );
   }
 
   if (error) {
@@ -186,20 +230,18 @@ export default function ClassroomsPage() {
                     </DialogDescription>
                 </DialogHeader>
                 <div className="py-4 space-y-4">
-                    <div>
-                        <label htmlFor="inviteCode" className="block text-sm font-medium text-gray-700">
-                        Invite Code
-                        </label>
-                        <input
+                    <div className="space-y-2">
+                        <Label htmlFor="inviteCode">Invite Code</Label>
+                        <Input
                         type="text"
                         id="inviteCode"
                         value={inviteCode}
                         onChange={(e) => setInviteCode(e.target.value)}
-                        className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm p-2 border"
                         placeholder="Enter invite code"
                         />
                     </div>
-                    {joinError && <p className="text-sm text-red-600">{joinError}</p>}
+                    {joinError && <p className="text-sm text-destructive">{joinError}</p>}
+                                    {/* Used text-destructive for error color from theme */}
                 </div>
                 <DialogFooter>
                     <Button variant="outline" onClick={() => setShowJoinModal(false)} disabled={isJoining}>

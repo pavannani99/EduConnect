@@ -1,35 +1,51 @@
-import { ButtonHTMLAttributes, forwardRef } from 'react'
-import { cn } from '@/lib/utils'
+import { ButtonHTMLAttributes, forwardRef } from 'react';
+import { cn } from '@/lib/utils';
+import { cva, type VariantProps } from 'class-variance-authority';
 
-interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
-  variant?: 'default' | 'outline' | 'ghost'
-  size?: 'sm' | 'md' | 'lg'
-}
+const buttonVariants = cva(
+  'inline-flex items-center justify-center rounded-md text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50',
+  {
+    variants: {
+      variant: {
+        default: 'bg-primary text-primary-foreground hover:bg-primary/90',
+        destructive: 'bg-destructive text-destructive-foreground hover:bg-destructive/90',
+        outline: 'border border-input bg-background hover:bg-accent hover:text-accent-foreground',
+        secondary: 'bg-secondary text-secondary-foreground hover:bg-secondary/80',
+        ghost: 'hover:bg-accent hover:text-accent-foreground',
+        link: 'text-primary underline-offset-4 hover:underline',
+      },
+      size: {
+        default: 'h-10 px-4 py-2',
+        sm: 'h-9 rounded-md px-3',
+        lg: 'h-11 rounded-md px-8',
+        icon: 'h-10 w-10',
+      },
+    },
+    defaultVariants: {
+      variant: 'default',
+      size: 'default',
+    },
+  }
+);
+
+export interface ButtonProps
+  extends ButtonHTMLAttributes<HTMLButtonElement>,
+    VariantProps<typeof buttonVariants> {}
 
 const Button = forwardRef<HTMLButtonElement, ButtonProps>(
-  ({ className, variant = 'default', size = 'md', ...props }, ref) => {
+  ({ className, variant, size, ...props }, ref) => {
     return (
       <button
+        className={cn(buttonVariants({ variant, size, className }))}
         ref={ref}
-        className={cn(
-          'inline-flex items-center justify-center rounded-md font-medium transition-colors',
-          'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2',
-          {
-            'bg-blue-600 text-white hover:bg-blue-500': variant === 'default',
-            'border border-gray-300 bg-transparent hover:bg-gray-50': variant === 'outline',
-            'hover:bg-gray-100': variant === 'ghost',
-            'h-8 px-3 text-sm': size === 'sm',
-            'h-10 px-4 text-base': size === 'md',
-            'h-12 px-6 text-lg': size === 'lg',
-          },
-          className
-        )}
         {...props}
       />
-    )
+    );
   }
-)
+);
+Button.displayName = 'Button';
 
-Button.displayName = 'Button'
-
-export { Button, type ButtonProps } 
+export { Button, buttonVariants };
+// Make sure to export ButtonProps as well if it was exported before, or ensure it's correctly inferred.
+// For this refactor, I'm aligning with typical Shadcn structure, so ButtonProps is explicitly exported.
+export type { ButtonProps }; // Explicitly re-exporting if needed, or rely on the interface above.

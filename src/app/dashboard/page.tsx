@@ -1,10 +1,11 @@
-import { Suspense } from 'react';
+import { Suspense, Fragment } from 'react'; // Added Fragment
 import { getServerSession } from 'next-auth';
 import { redirect } from 'next/navigation';
 import { authOptions } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
-import { trackUserActivity } from '@/lib/analytics'; // Import analytics tracking
-import { generateDetailedAnalytics } from '@/lib/analytics/advanced'; // Import for detailed analytics
+import { trackUserActivity } from '@/lib/analytics';
+import { generateDetailedAnalytics } from '@/lib/analytics/advanced';
+import { Skeleton } from '@/components/ui/skeleton'; // Import Skeleton
 import {
   Card,
   CardContent,
@@ -106,15 +107,54 @@ export default async function DashboardPage() {
   // For this example, let's assume getAnalytics was providing the direct counts needed for the top cards.
   // We can either call both, or ensure generateDetailedAnalytics provides everything.
   // Let's try to adapt from detailedAnalytics for now.
+  // Note: In a real app, ensure generateDetailedAnalytics is optimized or use separate, faster queries for above-the-fold content.
+  // For skeleton loading, we might need to know if `detailedAnalytics` is still loading.
+  // However, `generateDetailedAnalytics` is async and will be awaited.
+  // The skeleton state would be more for client-side fetching or if parts of the page load independently.
+  // For a fully server-rendered page like this, the page only renders once data is ready.
+  // The <Suspense> fallbacks are for client-side navigation to this page or for components that fetch their own data.
+
+  // To demonstrate skeleton for the main analytics cards if they were fetched client-side or took long:
+  // const [isLoadingAnalytics, setIsLoadingAnalytics] = useState(true); // If this were client-side
+  // For now, as it's server-side, the data will be there or page errors out.
+  // The Suspense fallbacks are the primary "loading state" for the child components.
+
   const summaryAnalytics = {
-    totalSubjects: await prisma.subject.count({ // This might need to be part of generateDetailedAnalytics or fetched separately
+    totalSubjects: await prisma.subject.count({
         where: { classroom: { members: { some: { id: session.user.id } } } }
     }),
     totalAssignments: detailedAnalytics.learningProgress.totalAssignments,
     completedAssignments: detailedAnalytics.learningProgress.completedAssignments,
-    quizzesAttempted: detailedAnalytics.performance.quizScores.length, // Assuming quizScores are from attempts
-    averageQuizScore: detailedAnalytics.learningProgress.averageScore, // This was already in getAnalytics
+    quizzesAttempted: detailedAnalytics.performance.quizScores.length,
+    averageQuizScore: detailedAnalytics.learningProgress.averageScore,
   };
+
+  const AnalyticsCardSkeleton = () => (
+    <Card>
+      <CardHeader className="flex flex-row items-center justify-between pb-2">
+        <Skeleton className="h-4 w-20" /> {/* Title */}
+        <Skeleton className="h-5 w-5" /> {/* Icon */}
+      </CardHeader>
+      <CardContent>
+        <Skeleton className="h-7 w-12 mb-1" /> {/* Main number */}
+        <Skeleton className="h-3 w-24" /> {/* Description */}
+      </CardContent>
+    </Card>
+  );
+
+  const ActivitySectionSkeleton = () => (
+    <Card className="mb-8">
+      <CardHeader>
+        <Skeleton className="h-6 w-1/3 mb-1" /> {/* Title */}
+        <Skeleton className="h-4 w-1/2" /> {/* Description */}
+      </CardHeader>
+      <CardContent className="space-y-3">
+        <Skeleton className="h-8 w-full" />
+        <Skeleton className="h-8 w-full" />
+        <Skeleton className="h-8 w-5/6" />
+      </CardContent>
+    </Card>
+  );
 
 
   return (
@@ -126,89 +166,90 @@ export default async function DashboardPage() {
 
       {/* Analytics Cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+        {/* Data is server-rendered, so skeletons here are more for illustration if data fetching was slow/client-side */}
         <Card>
           <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm font-medium text-gray-500">Subjects</CardTitle>
-            <BookOpenIcon className="h-5 w-5 text-blue-500" />
+            <CardTitle className="text-sm font-medium text-muted-foreground">Subjects</CardTitle>
+            <BookOpenIcon className="h-5 w-5 text-primary" />
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">{summaryAnalytics.totalSubjects}</div>
-            <p className="text-xs text-gray-500">Enrolled subjects</p>
+            <p className="text-xs text-muted-foreground">Enrolled subjects</p>
           </CardContent>
         </Card>
 
         <Card>
           <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm font-medium text-gray-500">Assignments</CardTitle>
-            <ClipboardDocumentCheckIcon className="h-5 w-5 text-green-500" />
+            <CardTitle className="text-sm font-medium text-muted-foreground">Assignments</CardTitle>
+            <ClipboardDocumentCheckIcon className="h-5 w-5 text-primary" />
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">{summaryAnalytics.completedAssignments}/{summaryAnalytics.totalAssignments}</div>
-            <p className="text-xs text-gray-500">Completed assignments</p>
+            <p className="text-xs text-muted-foreground">Completed assignments</p>
           </CardContent>
         </Card>
 
         <Card>
           <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm font-medium text-gray-500">Quizzes</CardTitle>
-            <AcademicCapIcon className="h-5 w-5 text-purple-500" />
+            <CardTitle className="text-sm font-medium text-muted-foreground">Quizzes</CardTitle>
+            <AcademicCapIcon className="h-5 w-5 text-primary" />
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">{summaryAnalytics.quizzesAttempted}</div>
-            <p className="text-xs text-gray-500">Quizzes attempted</p>
+            <p className="text-xs text-muted-foreground">Quizzes attempted</p>
           </CardContent>
         </Card>
 
         <Card>
           <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm font-medium text-gray-500">Average Score</CardTitle>
-            <ChartBarIcon className="h-5 w-5 text-yellow-500" />
+            <CardTitle className="text-sm font-medium text-muted-foreground">Average Score</CardTitle>
+            <ChartBarIcon className="h-5 w-5 text-primary" />
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">{summaryAnalytics.averageQuizScore.toFixed(1)}%</div>
-            <p className="text-xs text-gray-500">Quiz performance</p>
+            <p className="text-xs text-muted-foreground">Quiz performance</p>
           </CardContent>
         </Card>
       </div>
 
       {/* Recent Activity */}
-      <Card className="mb-8">
-        <CardHeader>
-          <CardTitle>Recent Activity</CardTitle>
-          <CardDescription>Your latest academic activities</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <Suspense fallback={<div>Loading activities...</div>}>
-            <RecentActivity userId={session.user.id} />
-          </Suspense>
-        </CardContent>
-      </Card>
+      <Suspense fallback={<ActivitySectionSkeleton />}>
+        <Card className="mb-8">
+          <CardHeader>
+            <CardTitle>Recent Activity</CardTitle>
+            <CardDescription>Your latest academic activities</CardDescription>
+          </CardHeader>
+          <CardContent>
+              <RecentActivity userId={session.user.id} />
+          </CardContent>
+        </Card>
+      </Suspense>
 
       {/* Upcoming Tasks */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <Card>
-          <CardHeader>
-            <CardTitle>Upcoming Assignments</CardTitle>
-            <CardDescription>Tasks due soon</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <Suspense fallback={<div>Loading assignments...</div>}>
-              <UpcomingAssignments userId={session.user.id} />
-            </Suspense>
-          </CardContent>
-        </Card>
+        <Suspense fallback={<ActivitySectionSkeleton />}>
+          <Card>
+            <CardHeader>
+              <CardTitle>Upcoming Assignments</CardTitle>
+              <CardDescription>Tasks due soon</CardDescription>
+            </CardHeader>
+            <CardContent>
+                <UpcomingAssignments userId={session.user.id} />
+            </CardContent>
+          </Card>
+        </Suspense>
 
-        <Card>
-          <CardHeader>
-            <CardTitle>Upcoming Quizzes</CardTitle>
-            <CardDescription>Scheduled assessments</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <Suspense fallback={<div>Loading quizzes...</div>}>
-              <UpcomingQuizzes userId={session.user.id} />
-            </Suspense>
-          </CardContent>
-        </Card>
+        <Suspense fallback={<ActivitySectionSkeleton />}>
+          <Card>
+            <CardHeader>
+              <CardTitle>Upcoming Quizzes</CardTitle>
+              <CardDescription>Scheduled assessments</CardDescription>
+            </CardHeader>
+            <CardContent>
+                <UpcomingQuizzes userId={session.user.id} />
+            </CardContent>
+          </Card>
+        </Suspense>
       </div>
     </div>
   );
